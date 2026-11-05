@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex">
+<title>Eight Bells</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<style>
+:root{--sea:#0b1714;--sea2:#12241f;--foam:#d9cfb6;--bronze:#a8763a;--bronze2:#e2b46a;--dark:#3d2812}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--sea);color:var(--foam);overflow:hidden;touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;
+  font-family:"Cormorant Garamond",Georgia,serif;
+  background:radial-gradient(ellipse at 50% 20%,var(--sea2),var(--sea) 70%);padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+h1{font-family:Cinzel,serif;font-weight:400;letter-spacing:.3em;font-size:clamp(18px,3vw,30px);opacity:.75}
+#start{font-family:Cinzel,serif;font-size:clamp(18px,3vw,26px);letter-spacing:.15em;color:var(--foam);background:none;
+  border:1px solid rgba(217,207,182,.5);border-radius:999px;padding:18px 38px}
+#bells{display:grid;grid-template-columns:repeat(8,1fr);gap:clamp(6px,1.4vw,18px);width:min(1100px,100%);align-items:end}
+@media (orientation:portrait){#bells{grid-template-columns:repeat(4,1fr);row-gap:4vh}}
+.bell{position:relative;border:none;background:none;display:flex;flex-direction:column;align-items:center;cursor:pointer;touch-action:manipulation}
+.bell svg{width:100%;height:auto;display:block;transform-origin:50% 6%;transition:filter .2s}
+.bell span{font-family:Cinzel,serif;font-weight:700;font-size:clamp(20px,3.4vw,38px);color:var(--foam);margin-top:.4em}
+.bell.ring svg{animation:swing .9s ease-out;filter:drop-shadow(0 0 14px rgba(226,180,106,.55))}
+@keyframes swing{0%{transform:rotate(0)}15%{transform:rotate(9deg)}35%{transform:rotate(-7deg)}55%{transform:rotate(4deg)}75%{transform:rotate(-2deg)}100%{transform:rotate(0)}}
+#trail{min-height:1.6em;font-family:Cinzel,serif;font-size:clamp(18px,2.6vw,28px);letter-spacing:.35em;opacity:.8;text-align:center}
+#row{display:flex;gap:16px;align-items:center}
+#again,#replay{font-family:Cinzel,serif;font-size:15px;letter-spacing:.15em;color:var(--foam);background:none;
+  border:1px solid rgba(217,207,182,.35);border-radius:999px;padding:10px 20px;opacity:.8}
+#replay{display:none}
+#msg{min-height:2.6em;font-style:italic;font-size:clamp(18px,2.6vw,28px);text-align:center;max-width:900px;transition:opacity .6s}
+#water{position:fixed;left:0;right:0;bottom:0;height:9vh;pointer-events:none;
+  background:linear-gradient(180deg,rgba(60,110,95,0),rgba(60,110,95,.22));transition:height 3s ease,background 1.5s}
+#water.stir{background:linear-gradient(180deg,rgba(120,170,150,0),rgba(120,170,150,.38))}
+#water.rise{height:46vh;background:linear-gradient(180deg,rgba(80,130,115,0),rgba(80,130,115,.45))}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<h1>Eight Bells</h1>
+<button id="start">Tap to wake the bells</button>
+<div id="bells" class="hidden"></div>
+<div id="trail" class="hidden"></div>
+<div id="row" class="hidden"><button id="again">Start again</button><button id="replay">Hear it again</button></div>
+<div id="msg"></div>
+<div id="water"></div>
+<script>
+const P={"iter": 60000, "salt": "bzj4SJI4h8DgI/e901fbCQ==", "iv": "LXUotIvrfkkcXLwu", "ct": "fVAKc9JGry8vLMpx2KMFUrnftAxhWdvQDqxQWGFwtjtxQME+esFjycAe5QNu3g==", "psalt": "jgTXoC2g/UPJr2/Qrw2ozw==", "piv": "xyRDxCcNsCuJQza5", "pct": "QYvkFlj803JCphVBFDDpoVUl77JvidFck+9WoiiskQ==", "aiv": "qITGvkJl05dFqaGc"};
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const enc=new TextEncoder();
+let ctx=null, buffers={}, hymnBuf=null, trail=[], solved=false, busy=Promise.resolve();
+window.__state={solved:false,prefixHits:0,checks:0};
+
+function bellSVG(n){
+  const s=1.15-(n-1)*0.05;                       // lowest bell is the biggest
+  return `<svg viewBox="0 0 120 140" style="width:${Math.round(s*100)}%">
+   <defs><linearGradient id="g${n}" x1="0" x2="1"><stop offset="0" stop-color="#5a3a17"/><stop offset=".45" stop-color="#e2b46a"/>
+   <stop offset=".7" stop-color="#a8763a"/><stop offset="1" stop-color="#4a2f12"/></linearGradient></defs>
+   <rect x="54" y="2" width="12" height="14" rx="4" fill="#4a2f12"/>
+   <path d="M60 12 C34 12 28 34 26 62 C24 88 18 104 8 116 L112 116 C102 104 96 88 94 62 C92 34 86 12 60 12Z" fill="url(#g${n})"/>
+   <rect x="6" y="113" width="108" height="9" rx="4" fill="#7a5226"/>
+   <circle cx="60" cy="128" r="9" fill="#3d2812"/></svg>`;
+}
+
+async function getBuffer(url){
+  const r=await fetch(url); const a=await r.arrayBuffer();
+  return await new Promise((res,rej)=>ctx.decodeAudioData(a,res,rej));
+}
+function play(buf,gain=1){
+  const s=ctx.createBufferSource(); s.buffer=buf; const g=ctx.createGain(); g.gain.value=gain;
+  s.connect(g).connect(ctx.destination); s.start(); return s;
+}
+
+async function deriveKey(seq,salt){
+  const base=await crypto.subtle.importKey('raw',enc.encode(seq),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(salt),iterations:P.iter,hash:'SHA-256'},
+    base,{name:'AES-GCM',length:256},false,['decrypt']);
+}
+async function tryOpen(seq,salt,iv,ct){
+  try{const k=await deriveKey(seq,salt);
+      await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(iv)},k,b64(ct)); return k}catch(_){return null}
+}
+
+function check(){
+  const t=trail.slice();
+  busy=busy.then(async()=>{
+    if(solved)return;
+    window.__state.checks++;
+    if(t.length>=8){
+      const k=await tryOpen(t.slice(-8).join(''),P.psalt,P.piv,P.pct);
+      if(k){window.__state.prefixHits++;stir()}
+    }
+    if(t.length>=14){
+      const k=await tryOpen(t.slice(-14).join(''),P.salt,P.iv,P.ct);
+      if(k)await win(k);
+    }
+  });
+}
+
+function stir(){
+  const w=document.getElementById('water'); w.classList.add('stir');
+  say('Below the floor, the water stirs.');
+  setTimeout(()=>w.classList.remove('stir'),4000);
+}
+function say(t){const m=document.getElementById('msg');m.style.opacity=0;setTimeout(()=>{m.textContent=t;m.style.opacity=1},250)}
+
+async function win(key){
+  solved=true;
+  const r=await fetch('hymn.bin'); const ct=await r.arrayBuffer();
+  const mp3=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(P.aiv)},key,ct);
+  hymnBuf=await new Promise((res,rej)=>ctx.decodeAudioData(mp3,res,rej));
+  window.__state.solved=true;
+  document.getElementById('water').classList.add('rise');
+  say('The last bell hangs in the air. Then, from somewhere far below, something sings it back.');
+  setTimeout(()=>play(hymnBuf,0.9),1600);
+  document.getElementById('replay').style.display='inline-block';
+}
+
+async function wake(){
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(_){}
+  if(ctx.state==='suspended')await ctx.resume();
+  // a silent tick unlocks iOS audio inside the user gesture
+  const b=ctx.createBuffer(1,1,22050); const s=ctx.createBufferSource(); s.buffer=b; s.connect(ctx.destination); s.start(0);
+  document.getElementById('start').textContent='Waking the bells…';
+  for(let n=1;n<=8;n++)buffers[n]=await getBuffer(`bells/bell-${n}.mp3`);
+  document.getElementById('start').classList.add('hidden');
+  ['bells','trail','row'].forEach(id=>document.getElementById(id).classList.remove('hidden'));
+}
+
+const wrap=document.getElementById('bells');
+for(let n=1;n<=8;n++){
+  const b=document.createElement('button'); b.className='bell'; b.setAttribute('aria-label','Bell '+n);
+  b.innerHTML=bellSVG(n)+`<span>${n}</span>`;
+  b.addEventListener('animationend',()=>b.classList.remove('ring'));
+  b.addEventListener('pointerdown',e=>{
+    e.preventDefault(); if(!ctx||!buffers[n])return;
+    if(ctx.state!=='running')ctx.resume();
+    play(buffers[n]);
+    b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring');
+    if(solved)return;
+    trail.push(n); if(trail.length>40)trail=trail.slice(-40);
+    document.getElementById('trail').textContent=trail.slice(-14).join(' ');
+    check();
+  });
+  wrap.appendChild(b);
+}
+document.getElementById('start').addEventListener('click',wake);
+document.getElementById('again').addEventListener('click',()=>{
+  trail=[];document.getElementById('trail').textContent='';
+  if(solved){solved=false;window.__state.solved=false;document.getElementById('water').classList.remove('rise');
+    document.getElementById('replay').style.display='none'}
+  say('');
+});
+document.getElementById('replay').addEventListener('click',()=>{if(hymnBuf)play(hymnBuf,0.9)});
+</script>
+</body>
+</html>
