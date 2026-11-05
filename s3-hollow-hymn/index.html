@@ -48,10 +48,10 @@ h1{font-family:Cinzel,serif;font-weight:400;letter-spacing:.3em;font-size:clamp(
 <div id="msg"></div>
 <div id="water"></div>
 <script>
-const P={"iter": 60000, "salt": "bzj4SJI4h8DgI/e901fbCQ==", "iv": "LXUotIvrfkkcXLwu", "ct": "fVAKc9JGry8vLMpx2KMFUrnftAxhWdvQDqxQWGFwtjtxQME+esFjycAe5QNu3g==", "psalt": "jgTXoC2g/UPJr2/Qrw2ozw==", "piv": "xyRDxCcNsCuJQza5", "pct": "QYvkFlj803JCphVBFDDpoVUl77JvidFck+9WoiiskQ==", "aiv": "qITGvkJl05dFqaGc"};
+const P={"iter": 60000, "salt": "aNJPkjdnB5nMqsttgVGlTA==", "iv": "0bPyzkkphulIIy3g", "ct": "zKQI0E4dhqht43SrHKEjO6MPJupyS6X8eADLtopzc81H4fgbhAnuWsS0642Wzg==", "psalt": "xNxlen1cBB4qYRf9sArdAw==", "piv": "QS6VGzNOZa3Gjnjb", "pct": "1BORmNK7i4MZX07fIbGmFD7+fcJ5BMtLp4IkWdRDzw==", "aiv": "w1xulaTZd9QNsZVb"};
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const enc=new TextEncoder();
-let ctx=null, buffers={}, hymnBuf=null, trail=[], solved=false, busy=Promise.resolve();
+let hymnCT=null; let ctx=null, buffers={}, hymnBuf=null, trail=[], solved=false, busy=Promise.resolve();
 window.__state={solved:false,prefixHits:0,checks:0};
 
 function bellSVG(n){
@@ -109,7 +109,7 @@ function say(t){const m=document.getElementById('msg');m.style.opacity=0;setTime
 
 async function win(key){
   solved=true;
-  const r=await fetch('hymn.bin'); const ct=await r.arrayBuffer();
+  const ct=hymnCT||await (await fetch('hymn.bin')).arrayBuffer();
   const mp3=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(P.aiv)},key,ct);
   hymnBuf=await new Promise((res,rej)=>ctx.decodeAudioData(mp3,res,rej));
   window.__state.solved=true;
@@ -127,6 +127,7 @@ async function wake(){
   const b=ctx.createBuffer(1,1,22050); const s=ctx.createBufferSource(); s.buffer=b; s.connect(ctx.destination); s.start(0);
   document.getElementById('start').textContent='Waking the bells…';
   for(let n=1;n<=8;n++)buffers[n]=await getBuffer(`bells/bell-${n}.mp3`);
+  try{hymnCT=await (await fetch('hymn.bin')).arrayBuffer()}catch(_){}   // works offline after this
   document.getElementById('start').classList.add('hidden');
   ['bells','trail','row'].forEach(id=>document.getElementById(id).classList.remove('hidden'));
 }
