@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Sapphire Cartel</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#e9e3d4;--dim:#a9a28f;--gold:#c9a24a;--sapph:#3f6fb5;--bg:#0b1324}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:radial-gradient(ellipse at 50% -10%,#1d3563 0%,#0b1324 55%,#05080f 100%);color:var(--ink);font-family:"Cormorant Garamond",Georgia,serif;font-size:19px;display:flex;justify-content:center;padding:28px 16px 60px}
+.wrap{width:100%;max-width:560px}
+.door{text-align:center;margin-top:8vh}
+.gem{width:64px;height:64px;margin:0 auto 18px}
+h1{font-family:Cinzel,serif;font-weight:700;letter-spacing:.22em;font-size:24px;color:var(--ink)}
+.tag{font-style:italic;color:var(--dim);margin:8px 0 34px;font-size:19px}
+.prompt{font-size:21px;margin-bottom:18px}
+form{display:flex;flex-direction:column;gap:12px;align-items:stretch}
+input{font-family:Cinzel,serif;font-size:20px;letter-spacing:.2em;text-align:center;padding:14px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(201,162,74,.55);color:var(--ink);border-radius:2px;text-transform:uppercase;outline:none}
+input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,162,74,.18)}
+button{font-family:Cinzel,serif;letter-spacing:.25em;font-size:15px;padding:14px;background:linear-gradient(#c9a24a,#9c7a2f);color:#1a1408;border:0;border-radius:2px;cursor:pointer}
+button:disabled{opacity:.6}
+.msg{min-height:52px;margin-top:16px;font-style:italic;color:#d9a3a3;font-size:19px}
+.fine{margin-top:40px;font-size:15px;color:#6f6a5c;font-style:italic}
+.reg h2{font-family:Cinzel,serif;letter-spacing:.2em;text-align:center;font-size:22px;margin-top:6px}
+.crest-sm{text-align:center;color:var(--sapph);font-size:26px}
+.warn{text-align:center;font-style:italic;color:var(--dim);margin:6px 0 26px}
+.reg h3{font-family:Cinzel,serif;font-size:15px;letter-spacing:.2em;color:var(--gold);border-bottom:1px solid rgba(201,162,74,.35);padding-bottom:6px;margin:26px 0 10px}
+.sm{font-family:"Cormorant Garamond",serif;letter-spacing:0;color:var(--dim);font-style:italic;font-size:15px}
+.row{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.pad{flex:0 0 44px;height:44px;border:1px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Cinzel,serif;font-weight:700;color:var(--gold)}
+.sup .pad{border-color:rgba(255,255,255,.15);color:var(--dim)}
+.who{font-weight:600;font-size:20px}
+.code{font-family:Cinzel,serif;font-size:15px;letter-spacing:.12em;color:#9fc0f0}
+.biz{color:var(--ink)}
+.note{color:var(--dim);font-style:italic}
+.hammer{background:linear-gradient(90deg,rgba(201,162,74,.08),transparent)}
+.foot{text-align:center;margin-top:30px;color:var(--dim);font-style:italic}
+.foot b{font-family:Cinzel,serif;font-style:normal;color:var(--ink);letter-spacing:.15em}
+.fade{animation:f .9s ease}
+@keyframes f{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+</style></head>
+<body><main class="wrap" id="app">
+<section class="door">
+<svg class="gem" viewBox="0 0 100 100"><polygon points="50,6 82,30 70,88 30,88 18,30" fill="#1f3a6b"/><polygon points="50,6 64,30 50,88 36,30" fill="#3f6fb5"/><polygon points="18,30 82,30 64,30 50,6 36,30" fill="#7fa6e0" opacity=".7"/></svg>
+<h1>THE SAPPHIRE CARTEL</h1>
+<p class="tag">An Evening of Rare Acquisitions</p>
+<p class="prompt">The doorman holds out a gloved hand.<br>&ldquo;Your invitation word.&rdquo;</p>
+<form id="f" autocomplete="off"><input id="w" aria-label="Invitation word" placeholder="&middot; &middot; &middot;" spellcheck="false"><button id="b">GIVE THE WORD</button></form>
+<p class="msg" id="m"></p>
+<p class="fine">Guests only. The Cartel remembers faces.</p>
+</section>
+</main>
+<script>
+const P={"salt":"XwE4ucLnhjU9VlX9dtqf/A==","iv":"NTMIEDvFmyJA1k0u","ct":"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","iter":250000};
+const fails=["The doorman doesn't know that word.","He doesn't know that one either. He's started looking at your hands.","“Wrong.” Two large men by the door have stopped talking.","The doorman smiles politely. Somebody behind you cracks their knuckles."];
+let n=0;
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function tryWord(word){
+  const enc=new TextEncoder();
+  const base=await crypto.subtle.importKey('raw',enc.encode(word),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(P.salt),iterations:P.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(P.iv)},key,b64(P.ct));
+  return new TextDecoder().decode(pt);
+}
+document.getElementById('f').addEventListener('submit',async e=>{
+  e.preventDefault();const btn=document.getElementById('b');const m=document.getElementById('m');
+  let raw=document.getElementById('w').value.toUpperCase().replace(/[^A-Z]/g,'');
+  if(!raw){return}
+  const cands=[raw];if(raw.endsWith('S'))cands.push(raw.slice(0,-1));if(raw.startsWith('DOORWORD'))cands.push(raw.slice(8));
+  btn.disabled=true;m.textContent='The doorman checks his list…';
+  for(const c of cands){try{const html=await tryWord(c);const app=document.getElementById('app');app.innerHTML=html;app.firstElementChild.classList.add('fade');window.scrollTo(0,0);return}catch(_){}}
+  m.textContent=fails[Math.min(n,fails.length-1)];n++;btn.disabled=false;
+});
+</script>
+</body></html>
