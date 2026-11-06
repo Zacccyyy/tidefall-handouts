@@ -55,7 +55,7 @@ h1{font-family:Cinzel,serif;font-weight:400;letter-spacing:.3em;font-size:clamp(
 <div id="msg"></div>
 <div id="water"></div>
 <script>
-const P={"iter": 60000, "salt": "CIM/WQHuuGcQ/91ux6e5oQ==", "iv": "TOqS1ZRZBBKBg+fg", "ct": "+m/Gfdhh2ixO6ekPsZU5hQGywK6uRzaeoMFiY/qXamK80pFOF1GXTwOj9KLOQg==", "psalt": "ZDQr68YtDbcHz0b8oFvrfA==", "piv": "1Z7ypx+lyRjuF/Ji", "pct": "Hywd1d1pxt0MIW5etcyx8a6HzL6sK4A9hYA+nilalQ==", "aiv": "aOslUJyOT9fKv0/X", "hymn": "hymn-d3a738c76b.bin"};
+const P={"iter": 60000, "salt": "BvnKgZW8Tt7S3DrzqBbHFA==", "iv": "+Bohi1Q8rvQqGtSt", "ct": "OItrMrLKNrZNzBlMZusDppZFjtd11lhivh93RZezMvovBzBcUpHTXzoy5bj6Ng==", "psalt": "l9f2amLee8uVYNcqp5mpdQ==", "piv": "9celgAMdt+Cy0VM2", "pct": "4ka/74KyHEqdwBPecSWOo9z8GHdy3GwZ1eU5OJFlSw==", "aiv": "n7LbdMo9eqYwYTCt", "hymn": "hymn-3a620991fa.bin"};
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const enc=new TextEncoder();
 let hymnCT=null; let ctx=null, buffers={}, hymnBuf=null, trail=[], solved=false, busy=Promise.resolve();
@@ -90,6 +90,7 @@ async function buildContext(){             // must be called inside a tap
   const b=ctx.createBuffer(1,1,22050);const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0);
   for(let n=1;n<=8;n++)buffers[n]=await decode(raw[n]);
   hymnBuf=raw.hymn?await decode(raw.hymn):null;
+  if(typeof hymnSrc!=='undefined'&&hymnSrc){hymnSrc=null;if(solved)showReplay(true)}
   lastT=ctx.currentTime; lastCheck=performance.now();
 }
 function play(buf,gain=1){
@@ -166,8 +167,7 @@ async function win(key){
   window.__state.solved=true;
   document.getElementById('water').classList.add('rise');
   say('The last bell hangs in the air. Then, from somewhere far below, something sings it back.');
-  setTimeout(()=>play(hymnBuf,0.9),1600);
-  document.getElementById('replay').style.display='inline-block';
+  setTimeout(playHymn,1600);
 }
 
 let awake=false;
@@ -208,10 +208,20 @@ document.getElementById('start').addEventListener('click',wake);
 document.getElementById('again').addEventListener('click',()=>{
   trail=[];document.getElementById('trail').textContent='';
   if(solved){solved=false;window.__state.solved=false;document.getElementById('water').classList.remove('rise');
-    document.getElementById('replay').style.display='none'}
+    stopHymn()}
   say('');
 });
-document.getElementById('replay').addEventListener('click',()=>{if(hymnBuf)play(hymnBuf,0.9)});
+// The hymn plays once at a time; "Hear it again" only shows once it has finished.
+let hymnSrc=null;
+function showReplay(on){document.getElementById('replay').style.display=on?'inline-block':'none'}
+function playHymn(){
+  if(!hymnBuf||hymnSrc)return;
+  showReplay(false);
+  const s=play(hymnBuf,0.9);hymnSrc=s;
+  s.onended=()=>{if(hymnSrc===s){hymnSrc=null;if(solved)showReplay(true)}};
+}
+function stopHymn(){if(hymnSrc){const s=hymnSrc;hymnSrc=null;try{s.stop()}catch(_){}}showReplay(false)}
+document.getElementById('replay').addEventListener('click',playHymn);
 // Offline: a service worker keeps every file on the iPad after the first visit.
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>

@@ -1,8 +1,8 @@
 // Eight Bells offline cache. Built by build_site.py; the version is a hash of every file.
 // Cache-first from one versioned cache, so the page, bells and hymn always come from the
 // same build. A new deploy installs a new cache, which takes over once old tabs are closed.
-const VERSION = 'eight-bells-de70e30a8767';
-const FILES = ["./", "index.html", "manifest.webmanifest", "hymn-d3a738c76b.bin", "bells/bell-1.mp3", "bells/bell-2.mp3", "bells/bell-3.mp3", "bells/bell-4.mp3", "bells/bell-5.mp3", "bells/bell-6.mp3", "bells/bell-7.mp3", "bells/bell-8.mp3", "icon-180.png", "icon-192.png", "icon-512.png", "fonts/cinzel-400.woff2", "fonts/cinzel-700.woff2", "fonts/cormorant-500.woff2", "fonts/cormorant-500i.woff2"];
+const VERSION = 'eight-bells-05329e739274';
+const FILES = ["./", "index.html", "manifest.webmanifest", "hymn-3a620991fa.bin", "bells/bell-1.mp3", "bells/bell-2.mp3", "bells/bell-3.mp3", "bells/bell-4.mp3", "bells/bell-5.mp3", "bells/bell-6.mp3", "bells/bell-7.mp3", "bells/bell-8.mp3", "icon-180.png", "icon-192.png", "icon-512.png", "fonts/cinzel-400.woff2", "fonts/cinzel-700.woff2", "fonts/cormorant-500.woff2", "fonts/cormorant-500i.woff2"];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c =>
