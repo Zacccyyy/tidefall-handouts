@@ -6,9 +6,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="robots" content="noindex">
 <title>Eight Bells</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-title" content="Eight Bells">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1714">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
 <style>
+@font-face{font-family:Cinzel;font-weight:400;src:url(fonts/cinzel-400.woff2) format("woff2")}
+@font-face{font-family:Cinzel;font-weight:700;src:url(fonts/cinzel-700.woff2) format("woff2")}
+@font-face{font-family:"Cormorant Garamond";font-weight:500;src:url(fonts/cormorant-500.woff2) format("woff2")}
+@font-face{font-family:"Cormorant Garamond";font-weight:500;font-style:italic;src:url(fonts/cormorant-500i.woff2) format("woff2")}
 :root{--sea:#0b1714;--sea2:#12241f;--foam:#d9cfb6;--bronze:#a8763a;--bronze2:#e2b46a;--dark:#3d2812}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--sea);color:var(--foam);overflow:hidden;touch-action:manipulation;
@@ -48,7 +55,7 @@ h1{font-family:Cinzel,serif;font-weight:400;letter-spacing:.3em;font-size:clamp(
 <div id="msg"></div>
 <div id="water"></div>
 <script>
-const P={"iter": 60000, "salt": "aNJPkjdnB5nMqsttgVGlTA==", "iv": "0bPyzkkphulIIy3g", "ct": "zKQI0E4dhqht43SrHKEjO6MPJupyS6X8eADLtopzc81H4fgbhAnuWsS0642Wzg==", "psalt": "xNxlen1cBB4qYRf9sArdAw==", "piv": "QS6VGzNOZa3Gjnjb", "pct": "1BORmNK7i4MZX07fIbGmFD7+fcJ5BMtLp4IkWdRDzw==", "aiv": "w1xulaTZd9QNsZVb"};
+const P={"iter": 60000, "salt": "CIM/WQHuuGcQ/91ux6e5oQ==", "iv": "TOqS1ZRZBBKBg+fg", "ct": "+m/Gfdhh2ixO6ekPsZU5hQGywK6uRzaeoMFiY/qXamK80pFOF1GXTwOj9KLOQg==", "psalt": "ZDQr68YtDbcHz0b8oFvrfA==", "piv": "1Z7ypx+lyRjuF/Ji", "pct": "Hywd1d1pxt0MIW5etcyx8a6HzL6sK4A9hYA+nilalQ==", "aiv": "aOslUJyOT9fKv0/X", "hymn": "hymn-d3a738c76b.bin"};
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const enc=new TextEncoder();
 let hymnCT=null; let ctx=null, buffers={}, hymnBuf=null, trail=[], solved=false, busy=Promise.resolve();
@@ -65,14 +72,58 @@ function bellSVG(n){
    <circle cx="60" cy="128" r="9" fill="#3d2812"/></svg>`;
 }
 
-async function getBuffer(url){
-  const r=await fetch(url); const a=await r.arrayBuffer();
-  return await new Promise((res,rej)=>ctx.decodeAudioData(a,res,rej));
+// ---- audio engine -------------------------------------------------------------
+// iOS can leave Web Audio silent after the screen locks or Safari loses focus, even while
+// it reports "running" (WebKit bug 276016). So we keep the raw mp3 bytes in memory and can
+// rebuild the whole AudioContext from them, with no network, on the next tap.
+const raw={};            // n -> ArrayBuffer (bells), 'hymn' -> decrypted mp3 bytes
+function setSession(){try{if('audioSession' in navigator)navigator.audioSession.type='playback'}catch(_){}}
+setSession();            // before any AudioContext exists: lets the bells ring with the silent switch on (iOS 16.4+)
+function decode(bytes){return new Promise((res,rej)=>ctx.decodeAudioData(bytes.slice(0),res,rej))}
+async function fetchBytes(url){const r=await fetch(url);if(!r.ok)throw new Error(url+' '+r.status);return r.arrayBuffer()}
+async function buildContext(){             // must be called inside a tap
+  if(ctx&&ctx.state!=='closed'){try{ctx.close().catch(()=>{})}catch(_){}}
+  setSession();
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  ctx.onstatechange=()=>{if(ctx.state==='interrupted'&&!document.hidden)quiet()};
+  if(ctx.state!=='running'){try{await ctx.resume()}catch(_){}}
+  const b=ctx.createBuffer(1,1,22050);const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0);
+  for(let n=1;n<=8;n++)buffers[n]=await decode(raw[n]);
+  hymnBuf=raw.hymn?await decode(raw.hymn):null;
+  lastT=ctx.currentTime; lastCheck=performance.now();
 }
 function play(buf,gain=1){
   const s=ctx.createBufferSource(); s.buffer=buf; const g=ctx.createGain(); g.gain.value=gain;
   s.connect(g).connect(ctx.destination); s.start(); return s;
 }
+// Is the audio clock actually moving? (a frozen clock = dead audio on iOS)
+let lastT=0,lastCheck=0;
+function clockDead(){
+  if(!ctx)return true;
+  if(ctx.state==='closed')return true;
+  const now=performance.now(),t=ctx.currentTime,dead=(ctx.state==='running'&&now-lastCheck>400&&t===lastT);
+  lastT=t;lastCheck=now;return dead;
+}
+function quiet(){                          // ask for one tap to rebuild the audio
+  if(!awake)return;
+  const st=document.getElementById('start');
+  st.textContent='The bells have gone quiet. Tap to wake them';st.classList.remove('hidden');
+}
+async function rewake(){
+  const st=document.getElementById('start');st.textContent='Waking the bells…';
+  await buildContext();st.classList.add('hidden');lockScreen();
+}
+// Keep the iPad from auto-locking while the board is open (Safari 16.4+; Home Screen apps iOS 18.4+)
+let lock=null;
+async function lockScreen(){try{if('wakeLock' in navigator&&!document.hidden)lock=await navigator.wakeLock.request('screen')}catch(_){}}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden||!awake)return;
+  lockScreen();
+  if(ctx&&ctx.state!=='running'){ctx.resume().catch(()=>{})}
+  lastT=ctx?ctx.currentTime:0;lastCheck=performance.now();
+  setTimeout(()=>{if(clockDead()||ctx.state!=='running')quiet()},700);
+});
+window.addEventListener('pageshow',e=>{if(e.persisted&&awake)setTimeout(()=>{if(clockDead()||ctx.state!=='running')quiet()},700)});
 
 async function deriveKey(seq,salt){
   const base=await crypto.subtle.importKey('raw',enc.encode(seq),'PBKDF2',false,['deriveKey']);
@@ -109,9 +160,9 @@ function say(t){const m=document.getElementById('msg');m.style.opacity=0;setTime
 
 async function win(key){
   solved=true;
-  const ct=hymnCT||await (await fetch('hymn.bin')).arrayBuffer();
-  const mp3=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(P.aiv)},key,ct);
-  hymnBuf=await new Promise((res,rej)=>ctx.decodeAudioData(mp3,res,rej));
+  const ct=hymnCT||await fetchBytes(P.hymn);
+  raw.hymn=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(P.aiv)},key,ct);
+  hymnBuf=await decode(raw.hymn);
   window.__state.solved=true;
   document.getElementById('water').classList.add('rise');
   say('The last bell hangs in the air. Then, from somewhere far below, something sings it back.');
@@ -119,17 +170,20 @@ async function win(key){
   document.getElementById('replay').style.display='inline-block';
 }
 
+let awake=false;
 async function wake(){
-  ctx=new (window.AudioContext||window.webkitAudioContext)();
-  try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(_){}
-  if(ctx.state==='suspended')await ctx.resume();
-  // a silent tick unlocks iOS audio inside the user gesture
-  const b=ctx.createBuffer(1,1,22050); const s=ctx.createBufferSource(); s.buffer=b; s.connect(ctx.destination); s.start(0);
-  document.getElementById('start').textContent='Waking the bells…';
-  for(let n=1;n<=8;n++)buffers[n]=await getBuffer(`bells/bell-${n}.mp3`);
-  try{hymnCT=await (await fetch('hymn.bin')).arrayBuffer()}catch(_){}   // works offline after this
-  document.getElementById('start').classList.add('hidden');
+  if(awake)return rewake();
+  const st=document.getElementById('start');st.textContent='Waking the bells…';
+  try{
+    for(let n=1;n<=8;n++)if(!raw[n])raw[n]=await fetchBytes(`bells/bell-${n}.mp3`);
+    if(!hymnCT)hymnCT=await fetchBytes(P.hymn);
+    await buildContext();
+  }catch(e){st.textContent='Could not load the bells. Check wifi, then tap again';return}
+  awake=true;window.__state.awake=true;
+  st.classList.add('hidden');
   ['bells','trail','row'].forEach(id=>document.getElementById(id).classList.remove('hidden'));
+  lockScreen();
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(_){}
 }
 
 const wrap=document.getElementById('bells');
@@ -139,8 +193,9 @@ for(let n=1;n<=8;n++){
   b.addEventListener('animationend',()=>b.classList.remove('ring'));
   b.addEventListener('pointerdown',e=>{
     e.preventDefault(); if(!ctx||!buffers[n])return;
-    if(ctx.state!=='running')ctx.resume();
+    if(ctx.state!=='running')ctx.resume().catch(()=>{});
     play(buffers[n]);
+    lastT=ctx.currentTime;lastCheck=performance.now();
     b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring');
     if(solved)return;
     trail.push(n); if(trail.length>40)trail=trail.slice(-40);
@@ -157,6 +212,8 @@ document.getElementById('again').addEventListener('click',()=>{
   say('');
 });
 document.getElementById('replay').addEventListener('click',()=>{if(hymnBuf)play(hymnBuf,0.9)});
+// Offline: a service worker keeps every file on the iPad after the first visit.
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
